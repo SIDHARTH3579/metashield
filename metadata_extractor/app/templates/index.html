@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Private Metadata Extractor</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; max-width: 850px; }
+    h1 { color: #007acc; }
+    pre { background: #111; color: #0f0; padding: 10px; border-radius: 6px; overflow-x: auto; }
+    button { padding: 8px 14px; margin-top: 10px; cursor: pointer; }
+    #maplink { display: block; margin-top: 8px; }
+  </style>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<meta name="theme-color" content="#1f1f1f">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/service-worker.js")
+      .then(() => console.log("Service Worker registered!"))
+      .catch(err => console.log("Service Worker registration failed:", err));
+  }
+</script>
+
+</head>
+<body>
+  <h1>Private Metadata Extractor</h1>
+  <p>Analyze and clean image metadata locally. Nothing is uploaded to the internet.</p>
+
+  <form id="uploadForm">
+    <input type="file" id="fileInput" name="file" />
+    <button type="submit">Extract Metadata</button>
+  </form>
+
+  <a id="maplink" target="_blank"></a>
+  <div id="summary"></div>
+
+  <h2>Result:</h2>
+  <pre id="output">No data yet.</pre>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const output = document.getElementById("output");
+    const maplink = document.getElementById("maplink");
+    const summaryDiv = document.getElementById("summary");
+
+    const cleanBtn = document.createElement("button");
+    cleanBtn.textContent = "Download Cleaned Image";
+    cleanBtn.style.display = "none";
+    cleanBtn.type = "button";
+    form.appendChild(cleanBtn);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) { output.textContent = "Please choose a file first."; return; }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      output.textContent = "Processing...";
+
+      const res = await fetch("/api/extract", { method: "POST", body: formData });
+      const data = await res.json();
+      output.textContent = JSON.stringify(data, null, 2);
+
+      try {
+        const presence = data.image?.presence_report;
+        if (presence) {
+          let reportHtml = `<strong>Metadata Presence Report:</strong><ul>`;
+          reportHtml += `<li>GPS Data: ${presence.gps_data ? "✅ Found" : "❌ Missing"}</li>`;
+          reportHtml += `<li>Camera Info: ${presence.camera_info ? "✅ Found" : "❌ Missing"}</li>`;
+          reportHtml += `<li>Timestamp: ${presence.timestamp ? "✅ Found" : "❌ Missing"}</li>`;
+          reportHtml += `</ul>`;
+          summaryDiv.innerHTML = reportHtml;
+        } else {
+          summaryDiv.textContent = "No EXIF metadata found in this file.";
+        }
+      } catch (e) {
+        summaryDiv.textContent = "Error generating summary.";
+      }
+
+      try {
+        const gps = data.summary?.GPS ?? data.image?.gps;
+        if (gps && gps.latitude) {
+          maplink.href = `https://www.google.com/maps?q=${gps.latitude},${gps.longitude}`;
+          maplink.textContent = "View Location on Google Maps";
+        } else {
+          maplink.textContent = "";
+          maplink.removeAttribute("href");
+        }
+      } catch {
+        maplink.textContent = "";
+        maplink.removeAttribute("href");
+      }
+
+      const isImage = data.mime && data.mime.startsWith && data.mime.startsWith("image/");
+      if (isImage) {
+        cleanBtn.style.display = "inline-block";
+        cleanBtn.onclick = async () => {
+          cleanBtn.disabled = true;
+          cleanBtn.textContent = "Cleaning...";
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const r = await fetch("/api/clean", { method: "POST", body: fd });
+            if (!r.ok) { alert("Clean failed."); cleanBtn.disabled = false; cleanBtn.textContent = "Download Cleaned Image"; return; }
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const contentDisp = r.headers.get("Content-Disposition");
+            let filename = "cleaned_image";
+            if (contentDisp) {
+              const match = contentDisp.match(/filename\*=UTF-8''(.+)|filename="?(.*?)"?(;|$)/);
+              if (match) filename = decodeURIComponent(match[1] || match[2]);
+            }
+            a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          } catch (err) {
+            alert("Error cleaning image: " + err);
+          } finally {
+            cleanBtn.disabled = false;
+            cleanBtn.textContent = "Download Cleaned Image";
+          }
+        };
+      } else {
+        cleanBtn.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

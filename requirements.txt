@@ -1,0 +1,8 @@
+Flask
+Pillow
+exifread
+PyPDF2
+python-docx
+mutagen
+python-magic-bin
+pytest

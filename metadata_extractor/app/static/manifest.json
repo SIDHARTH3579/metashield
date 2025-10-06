@@ -1,0 +1,16 @@
+{
+  "name": "MetaShield",
+  "short_name": "MetaShield",
+  "description": "Metadata Extractor & Cleaner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#1f1f1f",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230A0A0A'/><text x='50%' y='55%' font-size='220' text-anchor='middle' fill='%23FFFFFF' font-family='Arial'>M</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
