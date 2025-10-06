@@ -6,3 +6,4 @@ python-docx
 mutagen
 filetype
 pytest
+gunicorn
