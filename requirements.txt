@@ -4,5 +4,5 @@ exifread
 PyPDF2
 python-docx
 mutagen
-python-magic-bin
+filetype
 pytest
